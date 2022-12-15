@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+  </head>
+  <body>
+    <video id="remoteVideo" autoplay style="background-color: gray"></video>
+    <button onclick="start()">Start</button>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+      const socket = io({
+        query: {
+          type: "client",
+        },
+      });
+
+      const configuration = {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      };
+      const peerConnection = new RTCPeerConnection(configuration);
+
+      peerConnection.addEventListener("icecandidate", (event) => {
+        if (event.candidate) {
+          socket.emit("new-ice-candidate", event.candidate);
+        }
+      });
+
+      peerConnection.addEventListener("connectionstatechange", (event) => {
+        if (peerConnection.connectionState === "connected") {
+          console.log("Peers connected!");
+        }
+      });
+
+      const remoteVideo = document.querySelector("#remoteVideo");
+
+      function start() {
+        remoteVideo.play();
+      }
+
+      peerConnection.addEventListener("track", async (event) => {
+        const [remoteStream] = event.streams;
+        remoteVideo.srcObject = remoteStream;
+        console.log(remoteStream);
+      });
+
+      socket.on("connect", () => {
+        socket.on("message", (msg) => {
+          console.log("message: " + msg);
+        });
+
+        socket.on("offer", async (offer) => {
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(offer)
+          );
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          socket.emit("answer", answer);
+        });
+
+        socket.on("answer", async (answer) => {
+          const remoteDesc = new RTCSessionDescription(answer);
+          await peerConnection.setRemoteDescription(remoteDesc);
+        });
+
+        socket.on("new-ice-candidate", async (candidate) => {
+          if (candidate) {
+            try {
+              await peerConnection.addIceCandidate(candidate);
+            } catch (e) {
+              console.error("Error adding received ice candidate", e);
+            }
+          }
+        });
+
+        async function makeCall() {
+          const offer = await peerConnection.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true,
+          });
+          await peerConnection.setLocalDescription(offer);
+          socket.emit("offer", offer);
+        }
+
+        makeCall();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+  </head>
+  <body>
+    <select name="" id="" class="custom-select">
+      <option value="">Select camera</option>
+    </select>
+    <video autoplay style="background-color: gray"></video>
+    <button>Start</button>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+      const cameraOptions = document.querySelector("select");
+      const getCameraSelection = async () => {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(
+          (device) => device.kind === "videoinput"
+        );
+        const options = videoDevices.map((videoDevice) => {
+          return `<option value="${videoDevice.deviceId}">${videoDevice.label}</option>`;
+        });
+        cameraOptions.innerHTML = options.join("");
+      };
+
+      getCameraSelection();
+
+      const constraints = {
+        video: {
+          width: {
+            min: 1280,
+            ideal: 1920,
+            max: 2560,
+          },
+          height: {
+            min: 720,
+            ideal: 1080,
+            max: 1440,
+          },
+        },
+      };
+
+      navigator.mediaDevices
+        .getUserMedia(constraints)
+        .then((stream) => {
+          video.srcObject = stream;
+          stream.getTracks().forEach((track) => {
+            peerConnection.addTrack(track, stream);
+          });
+        })
+        .catch(console.error);
+
+      const socket = io({
+        query: {
+          type: "camera",
+        },
+      });
+
+      const configuration = {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      };
+      const peerConnection = new RTCPeerConnection(configuration);
+      const video = document.querySelector("video");
+      const btn = document.querySelector("button");
+      btn.onclick = () => {
+        video.play();
+      };
+
+      peerConnection.addEventListener("icecandidate", (event) => {
+        if (event.candidate) {
+          socket.emit("new-ice-candidate", event.candidate);
+        }
+      });
+
+      peerConnection.addEventListener("connectionstatechange", (event) => {
+        console.log(event);
+        if (peerConnection.connectionState === "connected") {
+          console.log("Peers connected!");
+        }
+      });
+
+      socket.on("connect", () => {
+        window.socket = socket;
+
+        socket.on("message", (msg) => {
+          console.log("message: " + msg);
+        });
+
+        socket.on("offer", async (offer) => {
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(offer)
+          );
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          socket.emit("answer", answer);
+        });
+
+        socket.on("answer", async (answer) => {
+          const remoteDesc = new RTCSessionDescription(answer);
+          await peerConnection.setRemoteDescription(remoteDesc);
+        });
+
+        socket.on("new-ice-candidate", async (candidate) => {
+          if (candidate) {
+            try {
+              await peerConnection.addIceCandidate(candidate);
+            } catch (e) {
+              console.error("Error adding received ice candidate", e);
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
