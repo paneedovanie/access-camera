@@ -75,14 +75,14 @@ const runPuppeteer = async () => {
   });
   const page = await browser.newPage();
   //   const contentHtml = fs.readFileSync(__dirname + "/index.html", "utf8");
-  await page.goto("http://localhost:5000");
+  await page.goto("http://localhost:5000/camera");
 
   await page.exposeFunction("log", console.log);
 
   await page.evaluate(async () => {
     // use window.readfile to read contents of a file
     // const content = await window.readfile("/etc/hosts");
-    window.log("access");
+    window.log(window.navigator);
   });
   // video session starts without prompt
   // return browser.close();
