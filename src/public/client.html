@@ -54,6 +54,10 @@
           console.log("message: " + msg);
         });
 
+        socket.on("camera-sockets", (sockets) => {
+          console.log("sockets", sockets);
+        });
+
         socket.on("offer", async (offer) => {
           await peerConnection.setRemoteDescription(
             new RTCSessionDescription(offer)

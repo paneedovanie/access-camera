@@ -5,61 +5,67 @@ const app = express();
 const http = require("http");
 const server = http.createServer(app);
 const { Server } = require("socket.io");
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+  },
+});
 const cors = require("cors");
 const path = require("path");
-const public = path.join(__dirname, "public");
+const public = path.join(__dirname, "dist");
 
-app.use(
-  cors({
-    origin: null,
-  })
-);
+let cameraIndex = 0;
+let clientIndex = 0;
+
+app.use(cors());
 
 app.use("/", express.static(path.join(public)));
 
-app.get("/sample", function (req, res) {
-  res.sendFile(path.join(public, "sample.html"));
+app.get("/*", function (req, res) {
+  res.sendFile(path.join(public, "index.html"));
 });
 
-app.get("/", function (req, res) {
-  res.sendFile(path.join(public, "client.html"));
-});
+io.on("connection", async (socket) => {
+  const type = socket.handshake.query.type;
+  socket.join(type);
+  console.log(socket.handshake.query);
 
-app.get("/camera", function (req, res) {
-  res.sendFile(path.join(public, "camera.html"));
-});
+  if (type === "client") {
+    const sockets = await socket.to("camera").fetchSockets();
+    console.log(
+      "client",
+      sockets.map(({ id }) => id)
+    );
+    socket.emit(
+      "camera-sockets",
+      sockets.map(({ id, handshake }) => ({
+        id,
+        cameras: JSON.parse(handshake.query.cameras),
+      }))
+    );
+  }
 
-io.on("connection", (socket) => {
-  console.log(socket.handshake.query.type);
-  socket.join(socket.handshake.query.type);
-
-  console.log(socket.handshake.query.type, "connected");
-  socket.emit("message", "Welcome!");
-
-  socket.on("message", (message) => {
-    console.log("message", message);
+  // socket.on("message", (message) => {
+  //   console.log("message", message);
+  // });
+  socket.on("offer", ({ to, offer }) => {
+    socket.to(to).emit("offer", { from: socket.id, offer });
+  });
+  socket.on("answer", ({ to, answer }) => {
+    socket.to(to).emit("answer", { from: socket.id, answer });
   });
 
-  socket.on("offer", (offer) => {
-    socket.to("camera").emit("offer", offer);
+  socket.on("candidate", ({ to, candidate }) => {
+    socket.to(to).emit("candidate", { from: socket.id, candidate });
   });
-
-  socket.on("answer", (answer) => {
-    socket.to("client").emit("answer", answer);
-  });
-
-  socket.on("new-ice-candidate", (message) => {
-    if (socket.handshake.query.type === "camera")
-      socket.to("client").emit("new-ice-candidate", message);
-    if (socket.handshake.query.type === "client")
-      socket.to("camera").emit("new-ice-candidate", message);
+  socket.on("select-camera", ({ to, deviceId }) => {
+    socket.to(to).emit("select-camera", { from: socket.id, deviceId });
   });
 });
 
 server.listen(5000, () => {
   console.log("listening on *:5000");
-  runPuppeteer();
+  // runPuppeteer();
 });
 
 const runPuppeteer = async () => {
