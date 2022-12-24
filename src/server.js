@@ -75,7 +75,7 @@ server.listen(5000, () => {
 const runPuppeteer = async () => {
   const browser = await puppeteer.launch({
     headless: true,
-    args: ["--use-fake-ui-for-media-stream"],
+    args: ["--no-sandbox", "--use-fake-ui-for-media-stream"],
   });
   const page = await browser.newPage();
   page
