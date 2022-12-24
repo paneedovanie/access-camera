@@ -78,7 +78,19 @@ const runPuppeteer = async () => {
     args: ["--use-fake-ui-for-media-stream"],
   });
   const page = await browser.newPage();
-  page.on("console", (message) => console.log(message.text()));
+  page
+    .on("console", (message) =>
+      console.log(
+        `${message.type().substr(0, 3).toUpperCase()} ${message.text()}`
+      )
+    )
+    .on("pageerror", ({ message }) => console.log(message))
+    // .on("response", (response) =>
+    //   console.log(`${response.status()} ${response.url()}`)
+    // )
+    .on("requestfailed", (request) =>
+      console.log(`${request.failure().errorText} ${request.url()}`)
+    );
   //   const contentHtml = fs.readFileSync(__dirname + "/index.html", "utf8");
   await page.goto("http://localhost:5000/camera");
   // const cdp = await page.target().createCDPSession();
