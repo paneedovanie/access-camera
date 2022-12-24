@@ -53,7 +53,11 @@
           const type = "videoinput";
           const devices =
             await window.navigator.mediaDevices.enumerateDevices();
-          cameras = devices.filter((device) => device.kind === type);
+          cameras = devices.filter(
+            (device) =>
+              device.kind === type &&
+              device.label !== "1.3M HD WebCam (064e:d20c)"
+          );
         };
 
         const getStream = async (deviceId) => {
