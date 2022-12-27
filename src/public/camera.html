@@ -76,35 +76,35 @@
             constraints
           );
 
-          const mediaRecorder = new MediaRecorder(stream, {
-            mimeType: "video/webm; codecs=vp9",
-          });
-          mediaRecorder.ondataavailable = (event) => {
-            /* add the data to the recordedDataArray */
-            recordedData.push(event.data);
-          };
-          function createFileFormCurrentRecordedData() {
-            const blob = new Blob(recordedData, { type: "video/mp4" });
-            const file = new File([blob], "yourfilename.mp4", {
-              type: "video/mp4",
-            });
-            recordedData = [];
-            let formData = new FormData();
-            let fileName = `${dayjs().format("YYYY-MM-DD - HH:mm:ss")}.mp4`;
-            formData.append("file", file, fileName);
-            axios.post("/api/upload", formData, {
-              headers: {
-                "Content-Type": `multipart/form-data`,
-              },
-            });
-          }
-          mediaRecorder.onstop = createFileFormCurrentRecordedData;
-          mediaRecorder.start();
+          // const mediaRecorder = new MediaRecorder(stream, {
+          //   mimeType: "video/webm; codecs=vp9",
+          // });
+          // mediaRecorder.ondataavailable = (event) => {
+          //   /* add the data to the recordedDataArray */
+          //   recordedData.push(event.data);
+          // };
+          // function createFileFormCurrentRecordedData() {
+          //   const blob = new Blob(recordedData, { type: "video/mp4" });
+          //   const file = new File([blob], "yourfilename.mp4", {
+          //     type: "video/mp4",
+          //   });
+          //   recordedData = [];
+          //   let formData = new FormData();
+          //   let fileName = `${dayjs().format("YYYY-MM-DD - HH:mm:ss")}.mp4`;
+          //   formData.append("file", file, fileName);
+          //   axios.post("/api/upload", formData, {
+          //     headers: {
+          //       "Content-Type": `multipart/form-data`,
+          //     },
+          //   });
+          // }
+          // mediaRecorder.onstop = createFileFormCurrentRecordedData;
+          // mediaRecorder.start();
 
-          setInterval(() => {
-            mediaRecorder.stop();
-            mediaRecorder.start();
-          }, 1_000 * 60 * 5);
+          // setInterval(() => {
+          //   mediaRecorder.stop();
+          //   mediaRecorder.start();
+          // }, 1_000 * 60 * 5);
 
           return stream;
         };
