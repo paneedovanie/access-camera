@@ -13,17 +13,19 @@
     <video autoplay style="background-color: gray"></video>
     <button>Start</button>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-      const configuration = {
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      };
-
-      let index = 0;
-      const peerConnections = new Map();
-
-      let cameras;
-      let mediaStreams;
       const main = async () => {
+        const configuration = {
+          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        };
+
+        const peerConnections = new Map();
+
+        let cameras;
+        let mediaStreams;
+
         const createPeerConnection = (socket, to) => {
           const peerConnection = new RTCPeerConnection({
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -61,14 +63,50 @@
         };
 
         const getStream = async (deviceId) => {
+          let recordedData = [];
           const constraints = {
             video: {
               deviceId,
+              frameRate: 10,
             },
             // audio: true,
           };
 
-          return window.navigator.mediaDevices.getUserMedia(constraints);
+          const stream = await window.navigator.mediaDevices.getUserMedia(
+            constraints
+          );
+
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: "video/webm; codecs=vp9",
+          });
+          mediaRecorder.ondataavailable = (event) => {
+            /* add the data to the recordedDataArray */
+            recordedData.push(event.data);
+          };
+          function createFileFormCurrentRecordedData() {
+            const blob = new Blob(recordedData, { type: "video/mp4" });
+            const file = new File([blob], "yourfilename.mp4", {
+              type: "video/mp4",
+            });
+            recordedData = [];
+            let formData = new FormData();
+            let fileName = `${dayjs().format("YYYY-MM-DD - HH:mm:ss")}.mp4`;
+            formData.append("file", file, fileName);
+            axios.post("/api/upload", formData, {
+              headers: {
+                "Content-Type": `multipart/form-data`,
+              },
+            });
+          }
+          mediaRecorder.onstop = createFileFormCurrentRecordedData;
+          mediaRecorder.start();
+
+          setInterval(() => {
+            mediaRecorder.stop();
+            mediaRecorder.start();
+          }, 1_000 * 60 * 5);
+
+          return stream;
         };
 
         const initStreams = async () => {
